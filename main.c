@@ -1,144 +1,168 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <locale.h>
-#include <time.h>
+#include <Adafruit_GFX.h>
+#include <Arduino_ST7789_Fast.h>
 
-#define true 1
-#define false 0
+#define TFT_DC    7
+#define TFT_RST   8 
+#define SCR_WD   240
+#define SCR_HT   240   
 
-typedef struct{
-    char nome[5];
-    int pontuacao;
-} Ranking;
+Arduino_ST7789 lcd = Arduino_ST7789(TFT_DC, TFT_RST);
 
-void voltarMenu(int run){
-    if(run == true){
-        printf("\n\nPressione qualquer tecla para retornar ao menu...\n");
-    }else{
-        printf("\n\nPressione qualquer tecla para fechar o jogo...\n");
-    }
-    getch();
-}
+int menuCtrl = 0;
+char GameName[]="EggRace";
 
-void contarHistoria(){
-    int i;
-    char text[] =
-    "Seu Zé é um trabalhador independente, seu sustento\n"
-    "vem da venda diárias de ovos  que ele faz.\n"
-    "Com seu negócio crescendo, seu zé decide te\n"
-    "contratar para ajudá-lo com as entregas. Com isso seu objetivo\n"
-    "agora é vender o maior número de ovos sem atrasar e\n"
-    "sem inutilizar o veículo\n";
-   for(i = 0; i < sizeof(text); i++){
-        printf("%c", text[i]);
-        usleep(30000);
-    }
-}
+struct Object{
+  int x;
+  int y;
+  int width;
+  int height;
+};
 
-void rankings(){
-    FILE *pf;
-    Ranking ranking;
-    Ranking rankings[100];
-    int index = 0;
-
-    printf("============================\n");
-    printf("Rankings EggRace\n");
-    printf("============================\n");
-
-    pf = fopen("rankings.txt", "wb");
-    for(int i = 0; i < 5; i++){
-        scanf("%s", &ranking.nome);
-        ranking.pontuacao = i*100;
-        fwrite(&ranking, sizeof(ranking), 1, pf);
-    }
-    fclose(pf);
-    
-    pf = fopen("rankings.txt", "rb");
-    while(fread(&ranking, sizeof(ranking), 1, pf) == 1){
-        if(index < 100){
-            rankings[index] = ranking;
-            index++;
-        }   
-    }
-    fclose(pf);
-
-    for(int i = 0; i < index; i++){
-        int maior = i;
-        for(int j = i+1; j < index; j++){
-            if(rankings[j].pontuacao > rankings[maior].pontuacao)
-                maior = j;
-        }
-        Ranking temp = rankings[maior];
-        rankings[maior] = rankings[i];
-        rankings[i] = temp;
-    }
-
-    for(int i = 0; i < index; i++){
-        printf("%d lugar - %s, pontuacao: %d\n", i+1, rankings[i].nome, rankings[i].pontuacao);
-    }
-}
-
-void creditos(){
-    printf("Desenvolvido pela equipe Mono Migare\n");
-    printf("==============\n");
-    printf("Fares Solibie\nGabriel Verle\nHenrique Amaral da Silva\n");
-}
-
-void ShowMenu(){
-    system("cls");
-    printf("============== Egg Race ==============\n");
-    printf("\nEscolha uma das opções:\n");
-    printf("1 - Play\n");
-    printf("2 - History\n");
-    printf("3 - Rankings\n");
-    printf("4 - Credits\n");
-    printf("5 - Exit\n");
-}
-
-void jogar(){
-    int i;
-    char text[] =
-    "hmm...\n"
-    "Você me parece um bom motorista";
-    for(i = 0; i < sizeof(text); i++){
-        printf("%c", text[i]);
-        usleep(30000);
-    }
-    printf("Aguarde... Jogo ainda em Desennvolvimento...");
-}
-
-int main()
+void setup()
 {
-    setlocale(LC_ALL, "");
+  Serial.begin(9600);
+  lcd.init(SCR_WD, SCR_HT);
+  pinMode(2, INPUT_PULLUP);
+  pinMode(3, INPUT_PULLUP);
+  pinMode(5, INPUT_PULLUP);
+  Menu(menuCtrl);
+ }
 
-    int run = true, opc;
+void loop()
+{
+       lcd.fillScreen(BLACK);
+        lcd.fillRect(0, 0, 48, 240, GREY);
+        lcd.fillRect(192, 0, 48, 240, GREY);
+        Jogar();
+    if(digitalRead(2) == LOW){
+      if(menuCtrl < 3){
+        menuCtrl++;
+        Menu(menuCtrl);
+      }  
+    } else if(digitalRead(3) == LOW){
+      if(menuCtrl > 0){
+        menuCtrl--;
+        Menu(menuCtrl);
+      }  
+    } else if(digitalRead(5) == LOW){
+      if(menuCtrl == 0){
+        lcd.fillScreen(BLACK);
+        lcd.fillRect(0, 0, 48, 240, GREY);
+        lcd.fillRect(192, 0, 48, 240, GREY);
+        Jogar();
+      }    
+  }
+  
+  Serial.println(menuCtrl);
+  delay(20);
+}
 
-    while(run){
-        //Menu do jogo
-        ShowMenu();
-        scanf("%d", &opc);
-        system("cls");
-        switch(opc){
-            case 1: //1- Play
-                jogar();
-            break;
-            case 2: //2- História
-                contarHistoria();
-            break;
-            case 3: //3- Rankings
-                rankings();
-            break;
-            case 4: //4- Créditos
-                creditos();
-            break;
-            case 5: //5- Sair
-                run = false;
-            break;
-            default: //Inválido
-                printf("Opção Inválida!\n\nPor Favor, insira um valor válido!\n");
-            break;
+void Menu(int opc){
+  lcd.fillScreen(BLACK);
+  for(int i=0;i<21;i++){
+    lcd.fillRect(i*20, 0, 10, 2, YELLOW);
+    lcd.fillRect(i*20, 50, 10, 2, YELLOW);
+  }
+  Escrever(GameName, 60, 15, 3, WHITE, 1);
+  Escrever("Jogar", 60, 80, 3, WHITE, 0-opc);
+  Escrever("Ranking", 60, 110, 3, WHITE, 1-opc);
+  Escrever("Creditos", 60, 140, 3, WHITE, 2-opc);
+  Escrever("Historia", 60 , 170, 3, WHITE, 3-opc);
+
+  lcd.fillRect(40, 80+30*opc+10, 5, 5, RED);
+}
+
+void Escrever(char *text, int X, int Y, int FontSize, char FontColor, int selected){
+  lcd.setCursor(X, Y);
+  lcd.setTextColor(FontColor);
+  lcd.setTextSize(FontSize);
+  if(!selected)
+    lcd.setTextColor(YELLOW);
+  lcd.println(text);
+}
+
+void Jogar(){
+  Object objetos[5];
+  Object player;
+  int genCount = 0;
+  int genCd = 60;
+  int objsCount = 0;
+
+  player.x = 102;
+  player.y = 190;
+  player.width = 25;
+  player.height = 45;
+  
+  int xAnterior = player.x;
+  bool run = true;  
+  while(run){
+      drawBG();
+      drawObjects(objetos, objsCount, player);
+      moveObjects(objetos, objsCount);
+      
+      xAnterior = player.x;
+      player.x = map(analogRead(A0), 0, 1023, 167, 48);
+
+      if(objsCount < 5){
+          if(genCount == 0){
+            objetos[objsCount].x = random(48, 144);
+            objetos[objsCount].y = 3;
+            objetos[objsCount].width = 25;
+            objetos[objsCount].height = 45;
+            genCount = 1;
+            objsCount++;
+          } else{
+            if(genCount >= genCd){
+              genCount = 0;
+            } else{
+              genCount++;
+            }
         }
-        voltarMenu(run);
+      }      
+      delay(100);
+      clearObjects(objetos, objsCount, xAnterior);
+      checkColisions(objetos, objsCount, player);
+      Serial.println(random(48, 144), random(48, 144));
+  }
+}
+
+void drawBG(){
+    for(int i = 1; i < 5; i++){
+      lcd.fillRect(72, (19*i)+((i-1)*48), 1, 48, YELLOW);
+      lcd.fillRect(120, (19*i)+((i-1)*48), 1, 48, YELLOW);
+      lcd.fillRect(168, (19*i)+((i-1)*48), 1, 48, YELLOW);
     }
-    return 0;
+}
+
+void drawObjects(Object objs[], int lenght, Object player){
+  for(int i = 0; i < lenght; i++){
+    lcd.fillRect(objs[i].x, objs[i].y, objs[i].width, objs[i].height, RED);
+  }
+  lcd.fillRect(player.x, player.y, player.width, player.height, BLUE);
+}
+
+void moveObjects(Object objs[], int lenght){
+  for(int i = 0; i < lenght; i++){
+    objs[i].y += 12;
+    if(objs[i].y > 250){
+      objs[i].x = random(48, 144);
+      objs[i].y = -50;
+    }
+  }
+}
+
+void clearObjects(Object objs[], int lenght, int xAnterior){
+  for(int i = 0; i < lenght; i++){
+    lcd.fillRect(objs[i].x, objs[i].y-12, objs[i].width, objs[i].height, BLACK);
+  }
+  lcd.fillRect(xAnterior, 190, 25, 45, BLACK);
+}
+
+void checkColisions(Object object[], int lenght, Object player){
+  for(int i = 0; i < lenght; i++){
+    if(player.x < object[i].x + object[i].width && player.x + player.width > object[i].x &&
+    player.y < object[i].y + object[i].height && player.y + player.height > object[i].y){
+      Serial.println("Col");
+    }
+  }
 }
